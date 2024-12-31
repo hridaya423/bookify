@@ -55,7 +55,7 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      let updateData: Partial<Book> = { status: newStatus };
+      const updateData: Partial<Book> = { status: newStatus };
       if (newStatus === 'past') {
         updateData.date_completed = new Date().toISOString();
       }
