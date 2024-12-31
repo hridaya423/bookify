@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
@@ -23,6 +22,19 @@ interface DailyProgress {
   pages_read: number;
   date: string;
   book_id: string;
+  user_id: string;
+}
+
+interface Book {
+  id: string;
+  title: string;
+  author: string;
+  status: string;
+  current_page?: number;
+  total_pages?: number;
+  date_completed?: string;
+  genre?: string[];
+  user_id: string;
 }
 
 interface ReadingStats {
@@ -41,11 +53,17 @@ interface ReadingStats {
 }
 
 interface UserSettings {
+  user_id: string;
   reading_goal: number;
   favorite_genres: string[];
 }
 
-const calculateStreak = (dailyProgress: any[]): number => {
+interface UserProfile {
+  id: string;
+  full_name?: string;
+}
+
+const calculateStreak = (dailyProgress: DailyProgress[]): number => {
   if (!dailyProgress?.length) return 0;
   
   let streak = 0;
@@ -82,13 +100,11 @@ const calculateStreak = (dailyProgress: any[]): number => {
   return streak;
 };
 
-
-
 export default function ReadingDashboard() {
   const { supabase, user } = useSupabase();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<ReadingStats>({
     totalBooks: 0,
     booksThisYear: 0,
     booksLastYear: 0,
@@ -102,9 +118,9 @@ export default function ReadingDashboard() {
     averagePagesPerDay: 0,
     dailyReadingProgress: [],
   });
-  const [currentBook, setCurrentBook] = useState(null);
+  const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [pagesRead, setPagesRead] = useState(0);
-  const [userSettings, setUserSettings] = useState(null);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [userName, setUserName] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
@@ -123,7 +139,7 @@ export default function ReadingDashboard() {
         loadStats(),
       ]);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -172,46 +188,50 @@ export default function ReadingDashboard() {
   };
 
   const loadStats = async () => {
+    if (!user?.id) return;
+
     const [settingsResult, booksResult, dailyProgressResult] = await Promise.all([
       supabase.from('user_settings').select('*').eq('user_id', user.id).single(),
       supabase.from('books').select('*').eq('user_id', user.id),
       supabase.from('daily_reading').select('*').eq('user_id', user.id).order('date', { ascending: false })
     ]);
     
-    setUserSettings(settingsResult.data);
+    setUserSettings(settingsResult.data as UserSettings);
+
+    const books = booksResult.data as Book[];
+    const dailyProgress = dailyProgressResult.data as DailyProgress[];
 
     const currentYear = new Date().getFullYear();
-    const completedBooks = booksResult.data?.filter(book => 
+    const completedBooks = books?.filter(book => 
       book.status === 'past' && book.date_completed
     ) || [];
 
     const booksThisYear = completedBooks.filter(book => 
-      new Date(book.date_completed).getFullYear() === currentYear
+      book.date_completed && new Date(book.date_completed).getFullYear() === currentYear
     );
 
     const monthlyStats = Array.from({ length: 12 }, (_, i) => ({
-        name: new Date(currentYear, i).toLocaleString('default', { month: 'short' }),
-        books: 0,
-        pages: 0
-      }));
+      name: new Date(currentYear, i).toLocaleString('default', { month: 'short' }),
+      books: 0,
+      pages: 0
+    }));
 
-      dailyProgressResult.data?.forEach(progress => {
-        const date = new Date(progress.date);
-        if (date.getFullYear() === currentYear) {
-          monthlyStats[date.getMonth()].pages += progress.pages_read || 0;
-        }
-      });
-  
-      booksThisYear.forEach(book => {
-        if (book.date_completed) {
-          const month = new Date(book.date_completed).getMonth();
-          monthlyStats[month].books += 1;
-        }
-      });
+    dailyProgress?.forEach(progress => {
+      const date = new Date(progress.date);
+      if (date.getFullYear() === currentYear) {
+        monthlyStats[date.getMonth()].pages += progress.pages_read || 0;
+      }
+    });
 
+    booksThisYear.forEach(book => {
+      if (book.date_completed) {
+        const month = new Date(book.date_completed).getMonth();
+        monthlyStats[month].books += 1;
+      }
+    });
 
-    const genreCounts = {};
-    booksResult.data?.forEach(book => {
+    const genreCounts: Record<string, number> = {};
+    books?.forEach(book => {
       if (book.genre) {
         book.genre.forEach(g => {
           genreCounts[g] = (genreCounts[g] || 0) + 1;
@@ -225,29 +245,29 @@ export default function ReadingDashboard() {
       .slice(0, 5);
 
     setStats({
-      totalBooks: booksResult.data?.length || 0,
+      totalBooks: books?.length || 0,
       booksThisYear: booksThisYear.length,
       booksLastYear: completedBooks.filter(book => 
-        new Date(book.date_completed).getFullYear() === currentYear - 1
+        book.date_completed && new Date(book.date_completed).getFullYear() === currentYear - 1
       ).length,
       averageBooksPerMonth: +(booksThisYear.length / 12).toFixed(1),
-      completionRate: booksResult.data?.length ? 
-        +((completedBooks.length / booksResult.data.length) * 100).toFixed(1) : 0,
+      completionRate: books?.length ? 
+        +((completedBooks.length / books.length) * 100).toFixed(1) : 0,
       favoriteGenres,
       monthlyStats,
-      currentStreak: calculateStreak(dailyProgressResult.data || []),
+      currentStreak: calculateStreak(dailyProgress || []),
       readingGoalProgress: settingsResult.data?.reading_goal ? 
         Math.min(100, Math.round((booksThisYear.length / settingsResult.data.reading_goal) * 100)) : 0,
-      totalPagesRead: dailyProgressResult.data?.reduce((sum, day) => sum + day.pages_read, 0) || 0,
+      totalPagesRead: dailyProgress?.reduce((sum, day) => sum + (day.pages_read || 0), 0) || 0,
       averagePagesPerDay: Math.round(
-        (dailyProgressResult.data?.reduce((sum, day) => sum + day.pages_read, 0) || 0) / 30
+        (dailyProgress?.reduce((sum, day) => sum + (day.pages_read || 0), 0) || 0) / 30
       ),
-      dailyReadingProgress: dailyProgressResult.data || []
+      dailyReadingProgress: dailyProgress || []
     });
   };
 
   const updateProgress = async () => {
-    if (!currentBook || !pagesRead) return;
+    if (!currentBook || !pagesRead || !user?.id) return;
 
     try {
       setLoading(true);
@@ -257,7 +277,7 @@ export default function ReadingDashboard() {
         supabase
           .from('daily_reading')
           .upsert({
-            user_id: user?.id,
+            user_id: user.id,
             book_id: currentBook.id,
             pages_read: pagesRead,
             date: today
@@ -279,7 +299,7 @@ export default function ReadingDashboard() {
       
       setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -466,7 +486,7 @@ export default function ReadingDashboard() {
                     </span>
                   </div>
                   <Progress 
-                    value={(currentBook.current_page / currentBook.total_pages) * 100}
+                    value={((currentBook.current_page ?? 0) / (currentBook.total_pages ?? 1)) * 100}
                     className="h-2 bg-red-100"
                   />
                 </div>
@@ -530,7 +550,7 @@ export default function ReadingDashboard() {
               </CardContent>
             </Card>
           )}
-          {userSettings?.reading_goal > 0 && (
+          {userSettings && userSettings.reading_goal > 0 && (
             <Card className="border-none bg-gradient-to-br from-red-50 to-pink-50 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg">
