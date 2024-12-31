@@ -109,7 +109,9 @@ Focus on authors who write in their preferred genres and have similar writing st
       temperature: 0.7
     });
 
-    const recommendations = message.content[0].text;
+    const recommendations = message.content[0].type === 'text' 
+  ? message.content[0].text
+  : '';
 
     return NextResponse.json({ recommendations });
   } catch (error) {
