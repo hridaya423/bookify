@@ -37,6 +37,22 @@ interface Book {
   user_id: string;
 }
 
+interface DatabaseBook {
+  author: string;
+  coverurl: string | null;
+  created_at: string | null;
+  current_page: number | null;
+  date_added: string | null;
+  date_completed: string | null;
+  favorite: boolean | null;
+  genre: string[];
+  id: string;
+  status: string;
+  title: string;
+  total_pages: number | null;
+  user_id: string | null;
+}
+
 interface ReadingStats {
   totalBooks: number;
   booksThisYear: number;
@@ -146,45 +162,65 @@ export default function ReadingDashboard() {
   };
 
   const loadUserProfile = async () => {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user?.id)
-      .single();
-    
-    if (profile?.full_name) {
-      setUserName(profile.full_name);
+    if (user?.user_metadata?.full_name) {
+      setUserName(user.user_metadata.full_name);
+    } else if (user?.email) {
+      setUserName(user.email.split('@')[0]);
     }
   };
 
+  function convertDatabaseBook(dbBook: DatabaseBook): Book {
+    return {
+      id: dbBook.id,
+      title: dbBook.title,
+      author: dbBook.author,
+      status: dbBook.status,
+      current_page: dbBook.current_page || undefined,
+      total_pages: dbBook.total_pages || undefined,
+      date_completed: dbBook.date_completed || undefined,
+      genre: dbBook.genre || [],
+      user_id: dbBook.user_id || '',
+    };
+  }
+
   const loadCurrentBook = async () => {
-    const { data: book } = await supabase
+    if (!user?.id) return
+    const { data: dbBook } = await supabase
       .from('books')
       .select('*')
-      .eq('user_id', user?.id)
+      .eq('user_id', user.id)
       .eq('status', 'current')
       .single();
 
-    if (book) {
-      if (!book.total_pages) {
-        try {
-          const response = await fetch(
-            `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(book.title)}+inauthor:${encodeURIComponent(book.author)}&maxResults=1`
-          );
-          const data = await response.json();
-          if (data.items?.[0]?.volumeInfo?.pageCount) {
-            await supabase
-              .from('books')
-              .update({ total_pages: data.items[0].volumeInfo.pageCount })
-              .eq('id', book.id);
-            book.total_pages = data.items[0].volumeInfo.pageCount;
+      if (dbBook) {
+        let bookToSet = convertDatabaseBook(dbBook);
+    
+        if (!bookToSet.total_pages) {
+          try {
+            const response = await fetch(
+              `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(bookToSet.title)}+inauthor:${encodeURIComponent(bookToSet.author)}&maxResults=1`
+            );
+            const data = await response.json();
+            if (data.items?.[0]?.volumeInfo?.pageCount) {
+              const totalPages = data.items[0].volumeInfo.pageCount;
+              
+              await supabase
+                .from('books')
+                .update({ total_pages: totalPages })
+                .eq('id', bookToSet.id)
+                .eq('user_id', user.id);
+
+              bookToSet = {
+                ...bookToSet,
+                total_pages: totalPages
+              };
+            }
+          } catch (error) {
+            console.error('Error fetching book details:', error);
           }
-        } catch (error) {
-          console.error('Error fetching book details:', error);
         }
+        setCurrentBook(bookToSet);
       }
-      setCurrentBook(book);
-    }
   };
 
   const loadStats = async () => {
