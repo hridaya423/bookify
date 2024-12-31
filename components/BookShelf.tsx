@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Book } from '../types';
 import { useSupabase } from '@/providers/supabase-provider';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,35 @@ import {
 import { BookOpen, Clock, MoreHorizontal, BookOpenCheck, Library } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
+import { Database } from '@/types_db';
+
+type Book = {
+  id: string;
+  title: string;
+  author: string;
+  status: 'past' | 'current' | 'planned';
+  coverUrl: string | null;
+  genre: string[];
+  user_id: string;
+  date_added: string;
+  date_completed?: string;
+};
+
+type DatabaseBook = Database['public']['Tables']['books']['Row'];
+
+function convertDatabaseBook(dbBook: DatabaseBook): Book {
+  return {
+    id: dbBook.id,
+    title: dbBook.title,
+    author: dbBook.author,
+    status: dbBook.status as Book['status'],
+    coverUrl: dbBook.coverurl,
+    genre: dbBook.genre || [],
+    user_id: dbBook.user_id || '',
+    date_added: dbBook.date_added || new Date().toISOString(),
+    date_completed: dbBook.date_completed || undefined,
+  };
+}
 
 export default function BookShelf({ status }: { status: Book['status'] }) {
   const [books, setBooks] = useState<Book[]>([]);
@@ -33,14 +61,18 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
       setError(null);
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
+      
       const { data, error } = await supabase
         .from('books')
         .select('*')
         .eq('status', status)
         .eq('user_id', user.id)
         .order('date_added', { ascending: false });
+        
       if (error) throw error;
-      setBooks(data || []);
+
+      const convertedBooks = (data || []).map(convertDatabaseBook);
+      setBooks(convertedBooks);
     } catch (err) {
       console.error('Error fetching books:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -55,10 +87,10 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const updateData: Partial<Book> = { status: newStatus };
-      if (newStatus === 'past') {
-        updateData.date_completed = new Date().toISOString();
-      }
+      const updateData: Partial<DatabaseBook> = { 
+        status: newStatus,
+        date_completed: newStatus === 'past' ? new Date().toISOString() : null
+      };
 
       const { error } = await supabase
         .from('books')
@@ -97,7 +129,6 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
         return '';
     }
   };
-
   const getStatusIcon = (bookStatus: Book['status']) => {
     switch (bookStatus) {
       case 'past':
