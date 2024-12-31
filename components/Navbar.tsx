@@ -7,7 +7,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSupabase } from '@/providers/supabase-provider';
 import { BookOpen, User2, Sparkles, LogOut, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Image from 'next/image';
 
 export default function Navbar() {
   const { supabase } = useSupabase();
@@ -51,7 +50,7 @@ export default function Navbar() {
               href="/" 
               className="flex items-center space-x-2"
             >
-              <Image src="https://raw.githubusercontent.com/hridaya423/bookify/refs/heads/master/Bookify_logo-removebg-preview.png" alt="Bookify" className="h-8" />
+              <img src="https://raw.githubusercontent.com/hridaya423/bookify/refs/heads/master/Bookify_logo-removebg-preview.png" alt="Bookify" className="h-8" />
             </Link>
 
             <div className="ml-10 flex items-center space-x-1">
