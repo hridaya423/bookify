@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useSupabase } from '@/providers/supabase-provider';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { BookOpen, User, HashIcon, Link, BookMarked, X } from 'lucide-react';
 
-export function AddBookForm({ onComplete }) {
+interface AddBookFormProps {
+  onComplete: () => void;
+}
+
+interface BookData {
+  title: string;
+  author: string;
+  status: 'planned' | 'current' | 'past';
+  coverurl: string | null;
+  user_id: string;
+  genre: string[];
+  favorite: boolean;
+  total_pages: number | null;
+  current_page: number;
+  date_completed: string | null;
+}
+
+interface GoogleBooksResponse {
+  items?: Array<{
+    volumeInfo?: {
+      pageCount?: number;
+    };
+  }>;
+}
+
+export function AddBookForm({ onComplete }: AddBookFormProps) {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
-  const [status, setStatus] = useState('planned');
+  const [status, setStatus] = useState<BookData['status']>('planned');
+  const handleStatusChange = (value: string) => {
+    setStatus(value as BookData['status']);
+  };
   const [coverUrl, setCoverUrl] = useState('');
-  const [totalPages, setTotalPages] = useState(null);
-  const [error, setError] = useState(null);
+  const [totalPages, setTotalPages] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const { supabase } = useSupabase();
 
@@ -29,12 +57,12 @@ export function AddBookForm({ onComplete }) {
     setError(null);
   };
 
-  const fetchBookDetails = async (title, author) => {
+  const fetchBookDetails = async (title: string, author: string): Promise<void> => {
     try {
       const response = await fetch(
         `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(author)}&maxResults=1`
       );
-      const data = await response.json();
+      const data: GoogleBooksResponse = await response.json();
       if (data.items?.[0]?.volumeInfo?.pageCount) {
         setTotalPages(data.items[0].volumeInfo.pageCount);
       }
@@ -43,7 +71,7 @@ export function AddBookForm({ onComplete }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -62,7 +90,7 @@ export function AddBookForm({ onComplete }) {
 
       const user = userResult.data.user;
 
-      const bookData = {
+      const bookData: BookData = {
         title: title.trim(),
         author: author.trim(),
         status,
@@ -100,7 +128,6 @@ export function AddBookForm({ onComplete }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden">
-
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-red-400 to-pink-500 opacity-10 rounded-full transform translate-x-32 -translate-y-32" />
         
         <Button 
@@ -190,7 +217,7 @@ export function AddBookForm({ onComplete }) {
                   <BookMarked className="w-4 h-4 text-red-400" />
                   Reading Status
                 </Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={status} onValueChange={handleStatusChange}>
                   <SelectTrigger className="w-full transition-all duration-200 border-gray-200 focus:border-red-400 focus:ring-2 focus:ring-red-100">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
