@@ -5,17 +5,15 @@ import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useSupabase } from '@/providers/supabase-provider';
 import { useEffect, useState } from 'react';
-import ReadingStats from '@/components/ReadingStats';
 import BookShelf from '@/components/BookShelf';
 import { AddBookForm } from '@/components/AddBookForm';
-import Navbar from '@/components/Navbar';
-import ReadingProgress from '@/components/ReadingProgress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Library, History, Clock, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReadingDashboard from '@/components/ReadingStats';
+import { Session } from '@supabase/supabase-js';
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -25,7 +23,7 @@ const fadeIn = {
 
 export default function Home() {
   const { supabase } = useSupabase();
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddBook, setShowAddBook] = useState(false);
 
