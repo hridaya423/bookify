@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BookOpen, Clock, MoreHorizontal, BookOpenCheck, Library } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import Image from 'next/image';
 import { Database } from '@/types_db';
 
 type Book = {
@@ -224,7 +223,7 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
               <CardContent className="flex-grow">
                 {book.coverUrl ? (
                   <div className="relative overflow-hidden rounded-lg mb-4 shadow-md group-hover:shadow-xl transition-shadow duration-200">
-                    <Image
+                    <img
                       src={book.coverUrl}
                       alt={`Cover of ${book.title}`}
                       className="w-full h-48 object-cover transform group-hover:scale-105 transition-transform duration-200"
