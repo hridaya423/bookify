@@ -79,7 +79,33 @@ export default function Home() {
                 <h2 className="text-2xl font-semibold text-gray-900">Welcome Back</h2>
                 <p className="text-sm text-gray-600">Sign in to access your library</p>
               </div>
-              
+
+              <Button
+                  onClick={async () => {
+                    try {
+                      const { error } = await supabase.auth.signInWithPassword({
+                        email: 'demo@bookify.com',
+                        password: 'demo123'
+                      });
+                      if (error) throw error;
+                    } catch (error) {
+                      console.error('Error signing in:', error);
+                      alert('Failed to sign in with demo account. Please try again.');
+                    }
+                  }}
+                  className="w-full bg-gradient-to-r from-red-400 to-pink-500 text-white hover:opacity-90"
+                >
+                  Try Demo Account
+                </Button>
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-300" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                  </div>
+                </div>
               <Auth 
                 supabaseClient={supabase} 
                 appearance={{ 
