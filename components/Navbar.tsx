@@ -42,7 +42,7 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="bg-white border-b border-red-100 sticky top-0 z-50 backdrop-blur-sm bg-white/50">
+    <nav className="bg-white border-b border-red-100 sticky top-0 z-40 backdrop-blur-sm bg-white/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
@@ -50,7 +50,7 @@ export default function Navbar() {
               href="/" 
               className="flex items-center space-x-2"
             >
-              <img src="https://raw.githubusercontent.com/hridaya423/bookify/refs/heads/master/Bookify_logo-removebg-preview.png" alt="Bookify" className="h-8" />
+              <img src="https://raw.githubusercontent.com/hridaya423/bookify/refs/heads/master/Bookify_logo-removebg-preview.png" alt="Bookify" className="h-8"  />
             </Link>
 
             <div className="ml-10 flex items-center space-x-1">
