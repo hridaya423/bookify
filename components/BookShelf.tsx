@@ -13,6 +13,7 @@ import {
 import { BookOpen, Clock, MoreHorizontal, BookOpenCheck, Library } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Database } from '@/types_db';
+import BookPreviewModal from './BookPreviewModal';
 
 type Book = {
   id: string;
@@ -24,10 +25,10 @@ type Book = {
   user_id: string;
   date_added: string;
   date_completed?: string;
+  current_page?: number;
+  total_pages?: number;
 };
-
 type DatabaseBook = Database['public']['Tables']['books']['Row'];
-
 function convertDatabaseBook(dbBook: DatabaseBook): Book {
   return {
     id: dbBook.id,
@@ -39,28 +40,27 @@ function convertDatabaseBook(dbBook: DatabaseBook): Book {
     user_id: dbBook.user_id || '',
     date_added: dbBook.date_added || new Date().toISOString(),
     date_completed: dbBook.date_completed || undefined,
+    current_page: dbBook.current_page || undefined,
+    total_pages: dbBook.total_pages || undefined,
   };
 }
-
 export default function BookShelf({ status }: { status: Book['status'] }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const { supabase } = useSupabase();
   const { toast } = useToast();
-
   useEffect(() => {
     fetchBooks();
   }, [status, supabase]);
-
   async function fetchBooks() {
     try {
       setLoading(true);
       setError(null);
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
-      
       const { data, error } = await supabase
         .from('books')
         .select('*')
@@ -71,7 +71,7 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
       if (error) throw error;
 
       const convertedBooks = (data || []).map(convertDatabaseBook);
-      setBooks(convertedBooks);
+      setBooks(convertedBooks); 
     } catch (err) {
       console.error('Error fetching books:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -128,6 +128,7 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
         return '';
     }
   };
+
   const getStatusIcon = (bookStatus: Book['status']) => {
     switch (bookStatus) {
       case 'past':
@@ -174,6 +175,12 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
 
   return (
     <div className="space-y-6">
+      {selectedBook && (
+        <BookPreviewModal
+          book={selectedBook}
+          onClose={() => setSelectedBook(null)}
+        />
+      )}
       <div className="flex items-center space-x-3 pb-2 border-b border-gray-200">
         {getStatusIcon(status)}
         <h2 className="text-2xl font-bold bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">
@@ -190,7 +197,16 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {books.map((book) => (
-            <Card key={book.id} className="group hover:shadow-lg transition-shadow duration-200 overflow-hidden flex flex-col">
+            <Card 
+              key={book.id} 
+              className="group hover:shadow-lg transition-shadow duration-200 overflow-hidden flex flex-col cursor-pointer"
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (!target.closest('.book-actions')) {
+                  setSelectedBook(book);
+                }
+              }}
+            >
               <CardHeader className="relative">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg font-bold text-gray-800 group-hover:text-red-500 transition-colors duration-200">
@@ -198,7 +214,11 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
                   </CardTitle>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="-mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="-mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 book-actions"
+                      >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
