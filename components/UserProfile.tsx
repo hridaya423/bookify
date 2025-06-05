@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -92,7 +93,6 @@ const UserProfile = () => {
     setLoading(true)
     setError(null)
     setSuccess(false)
-
     try {
       const { error } = await supabase
         .from('user_settings')
@@ -121,7 +121,6 @@ const UserProfile = () => {
       </Card>
     )
   }
-
   if (!session) {
     return (
       <Card className="max-w-xl mx-auto bg-white/50 backdrop-blur-sm">
@@ -151,7 +150,6 @@ const UserProfile = () => {
           </div>
         </div>
       </CardHeader>
-      
       <CardContent className="p-6 space-y-6">
         {error && (
           <Alert variant="destructive" className="bg-red-50 border-red-200">
@@ -159,14 +157,12 @@ const UserProfile = () => {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        
         {success && (
           <Alert className="bg-green-50 border-green-200 text-green-800">
             <AlertTitle>Success</AlertTitle>
             <AlertDescription>Your reading preferences have been updated!</AlertDescription>
           </Alert>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-4">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
@@ -193,7 +189,6 @@ const UserProfile = () => {
               ))}
             </div>
           </div>
-
           <div className="space-y-4">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
               <Target className="h-4 w-4 text-red-400" />
@@ -213,7 +208,6 @@ const UserProfile = () => {
               </span>
             </div>
           </div>
-
           <Button
             type="submit"
             disabled={loading}
@@ -232,7 +226,6 @@ const UserProfile = () => {
             )}
           </Button>
         </form>
-
         <div className="mt-6 p-4 bg-gradient-to-r from-red-50 to-red-100 rounded-lg">
           <div className="flex items-center space-x-2 text-red-600">
             <BookOpen className="h-5 w-5" />

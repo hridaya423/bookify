@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+
 'use client'
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,11 +21,6 @@ interface Book {
   date_completed?: string;
 }
 
-interface UserSettings {
-  user_id: string;
-  reading_goal: number;
-  favorite_genres: string[];
-}
 
 interface ReadingGoals {
   yearlyGoal: number;
@@ -38,13 +34,6 @@ interface AuthorRecommendation {
   readCount: number;
 }
 
-interface DailyReading {
-  id: string;
-  user_id: string;
-  book_id: string;
-  pages_read: number;
-  date: string;
-}
 
 const RecommendationsPage: React.FC = () => {
   const { supabase, user } = useSupabase();

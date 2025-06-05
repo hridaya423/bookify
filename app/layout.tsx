@@ -1,5 +1,6 @@
 
 import SupabaseProvider from '@/providers/supabase-provider';
+import { ThemeProvider } from '@/providers/theme-provider';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import type { Metadata } from "next";
@@ -16,14 +17,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <link rel="icon" href="https://raw.githubusercontent.com/hridaya423/bookify/refs/heads/master/Bookify_logo-removebg-preview.png" sizes="any" />
-      <body>
-        <SupabaseProvider>
-          <Navbar />
-          {children}
-          <Toaster />
-        </SupabaseProvider>
+      <body className="min-h-screen bg-background text-foreground">
+        <ThemeProvider>
+          <SupabaseProvider>
+            <Navbar />
+            {children}
+            <Toaster />
+          </SupabaseProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

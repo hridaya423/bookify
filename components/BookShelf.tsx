@@ -10,10 +10,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { BookOpen, Clock, MoreHorizontal, BookOpenCheck, Library } from 'lucide-react';
+import { BookOpen, Clock, MoreHorizontal, BookOpenCheck, Library, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Database } from '@/types_db';
-import BookPreviewModal from './BookPreviewModal';
+import { BookPreviewModal } from './BookPreviewModal';
+import DeleteConfirmDialog from './DeleteConfirmDialog';
 
 type Book = {
   id: string;
@@ -50,6 +51,10 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    book: Book | null;
+  }>({ isOpen: false, book: null });
   const { supabase } = useSupabase();
   const { toast } = useToast();
   useEffect(() => {
@@ -79,27 +84,22 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
       setLoading(false);
     }
   }
-
   async function updateBookStatus(bookId: string, newStatus: Book['status']) {
     try {
       setUpdating(bookId);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
-
       const updateData: Partial<DatabaseBook> = { 
         status: newStatus,
         date_completed: newStatus === 'past' ? new Date().toISOString() : null
       };
-
       const { error } = await supabase
         .from('books')
         .update(updateData)
         .eq('id', bookId)
         .eq('user_id', user.id);
-
       if (error) throw error;
       setBooks(books.filter(book => book.id !== bookId));
-      
       toast({
         title: "Book updated",
         description: `Successfully moved to ${getStatusTitle(newStatus).toLowerCase()}`,
@@ -116,6 +116,83 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
     }
   }
 
+  function openDeleteDialog(book: Book) {
+    setDeleteDialog({ isOpen: true, book });
+  }
+
+  function closeDeleteDialog() {
+    setDeleteDialog({ isOpen: false, book: null });
+  }
+
+  async function confirmDeleteBook() {
+    const book = deleteDialog.book;
+    if (!book) return;
+
+    try {
+      setUpdating(book.id);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      console.log('Attempting to delete book:', { bookId: book.id, userId: user.id, title: book.title });
+
+      
+      const { error: dailyReadingError } = await supabase
+        .from('daily_reading')
+        .delete()
+        .eq('book_id', book.id)
+        .eq('user_id', user.id);
+
+      if (dailyReadingError) {
+        console.error('Error deleting daily reading records:', dailyReadingError);
+        throw new Error(`Failed to delete related reading records: ${dailyReadingError.message || 'Unknown error'}`);
+      }
+
+      console.log('Daily reading records deleted successfully');
+
+      
+      const { data, error } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', book.id)
+        .eq('user_id', user.id);
+
+      console.log('Delete response:', { data, error });
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw new Error(`Database error: ${error.message || 'Unknown error'}`);
+      }
+
+      
+      setBooks(books.filter(b => b.id !== book.id));
+      
+      toast({
+        title: "Book deleted",
+        description: `"${book.title}" has been removed from your library`,
+      });
+
+      closeDeleteDialog();
+    } catch (err) {
+      console.error('Error deleting book:', err);
+      console.error('Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        errorObject: err
+      });
+      
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'An unexpected error occurred while deleting the book';
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(null);
+    }
+  }
   const getStatusTitle = (bookStatus: Book['status'] = status) => {
     switch (bookStatus) {
       case 'past':
@@ -179,8 +256,19 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
         <BookPreviewModal
           book={selectedBook}
           onClose={() => setSelectedBook(null)}
+          isOpen={!!selectedBook}
         />
       )}
+      
+      <DeleteConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={confirmDeleteBook}
+        title="Delete Book"
+        message="Are you sure you want to delete this book from your library? This action cannot be undone."
+        itemName={deleteDialog.book?.title || ''}
+        isDeleting={updating === deleteDialog.book?.id}
+      />
       <div className="flex items-center space-x-3 pb-2 border-b border-gray-200">
         {getStatusIcon(status)}
         <h2 className="text-2xl font-bold bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">
@@ -212,32 +300,64 @@ export default function BookShelf({ status }: { status: Book['status'] }) {
                   <CardTitle className="text-lg font-bold text-gray-800 group-hover:text-red-500 transition-colors duration-200">
                     {book.title}
                   </CardTitle>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="-mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 book-actions"
+                  <div 
+                    className="book-actions"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="-mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent 
+                        align="end" 
+                        className="w-56"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      {getAvailableActions(status).map((newStatus) => (
+                        {getAvailableActions(status).map((newStatus) => (
+                          <DropdownMenuItem
+                            key={newStatus}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              updateBookStatus(book.id, newStatus);
+                            }}
+                            onSelect={(e) => e.preventDefault()}
+                            disabled={updating === book.id}
+                            className="p-3 cursor-pointer"
+                          >
+                            <span className="flex items-center">
+                              {getStatusIcon(newStatus)}
+                              <span className="ml-2">Move to {getStatusTitle(newStatus)}</span>
+                            </span>
+                          </DropdownMenuItem>
+                        ))}
                         <DropdownMenuItem
-                          key={newStatus}
-                          onClick={() => updateBookStatus(book.id, newStatus)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openDeleteDialog(book);
+                          }}
+                          onSelect={(e) => e.preventDefault()}
                           disabled={updating === book.id}
-                          className="p-3 cursor-pointer"
+                          className="p-3 cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <span className="flex items-center">
-                            {getStatusIcon(newStatus)}
-                            <span className="ml-2">Move to {getStatusTitle(newStatus)}</span>
+                            <Trash2 className="h-4 w-4" />
+                            <span className="ml-2">Delete Book</span>
                           </span>
                         </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="flex-grow">

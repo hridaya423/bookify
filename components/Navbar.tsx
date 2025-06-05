@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSupabase } from '@/providers/supabase-provider';
-import { BookOpen, User2, Sparkles, LogOut, LogIn } from 'lucide-react';
+import { BookOpen, User2, Sparkles, LogOut, LogIn, Library } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function Navbar() {
   const { supabase } = useSupabase();
@@ -37,12 +39,13 @@ export default function Navbar() {
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: <BookOpen className="w-4 h-4" />, requiresAuth:true },
+    { href: '/library', label: 'Library', icon: <Library className="w-4 h-4" />, requiresAuth: true },
     { href: '/profile', label: 'Profile', icon: <User2 className="w-4 h-4" />, requiresAuth: true },
     { href: '/recommendations', label: 'Recommendations', icon: <Sparkles className="w-4 h-4" />, requiresAuth: true },
   ];
 
   return (
-    <nav className="bg-white border-b border-red-100 sticky top-0 z-40 backdrop-blur-sm bg-white/50">
+    <nav className="bg-background/80 border-b border-border sticky top-0 z-40 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
@@ -52,7 +55,6 @@ export default function Navbar() {
             >
               <img src="https://raw.githubusercontent.com/hridaya423/bookify/refs/heads/master/Bookify_logo-removebg-preview.png" alt="Bookify" className="h-8"  />
             </Link>
-
             <div className="ml-10 flex items-center space-x-1">
               {navItems.filter(item => !item.requiresAuth || user).map((item) => (
                 <Link
@@ -64,7 +66,7 @@ export default function Navbar() {
                     ${
                       pathname === item.href
                         ? 'bg-gradient-to-r from-red-400 to-red-600 text-white shadow-sm'
-                        : 'text-gray-600 hover:bg-red-50 hover:text-red-600'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }
                   `}
                 >
@@ -75,26 +77,29 @@ export default function Navbar() {
             </div>
           </div>
 
-          {user ? (
-            <Button
-              onClick={handleSignOut}
-              variant="ghost"
-              className="flex items-center space-x-2 text-gray-600 hover:bg-red-50 hover:text-red-600"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
-            </Button>
-          ) : (
-            <Link href="/login">
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            {user ? (
               <Button
+                onClick={handleSignOut}
                 variant="ghost"
-                className="flex items-center space-x-2 text-gray-600 hover:bg-red-50 hover:text-red-600"
+                className="flex items-center space-x-2"
               >
-                <LogIn className="w-4 h-4" />
-                <span>Sign In</span>
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
               </Button>
-            </Link>
-          )}
+            ) : (
+              <Link href="/login">
+                <Button
+                  variant="ghost"
+                  className="flex items-center space-x-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Sign In</span>
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </nav>

@@ -1,15 +1,30 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
+import Groq from 'groq-sdk';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 );
 
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY!,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY!,
 });
+
+
+function filterThinkTags(text: string): string {
+  
+  let filtered = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  
+  
+  filtered = filtered.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+  
+  
+  filtered = filtered.replace(/<\/?think(?:ing)?>/gi, '');
+  
+  
+  return filtered.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
+}
 
 export async function POST(request: Request) {
   try {
@@ -51,7 +66,7 @@ export async function POST(request: Request) {
       date_completed: book.date_completed
     }));
 
-    const systemPrompt = "You are a knowledgeable book recommendation assistant. Your task is to provide thoughtful, personalized book recommendations based on a reader's history and preferences. Focus on making connections between their favorite genres, authors they've enjoyed, and potential new books they might like.";
+    const systemPrompt = "You are a knowledgeable book recommendation assistant. Your task is to provide thoughtful, personalized book recommendations based on a reader's history and preferences. Focus on making connections between their favorite genres, authors they've enjoyed, and potential new books they might like. Do not include any <think> tags in your response.";
     let userPrompt = '';
     
     if (recommendation_type === 'books') {
@@ -96,28 +111,55 @@ Please provide your recommendations in this exact format:
 Focus on authors who write in their preferred genres and have similar writing styles to their favorites.`;
     }
 
-    const message = await anthropic.messages.create({
-      model: "claude-3-opus-20240229",
-      max_tokens: 1000,
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
       messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
         {
           role: "user",
           content: userPrompt
         }
       ],
-      system: systemPrompt,
+      max_tokens: 1000,
       temperature: 0.7
     });
 
-    const recommendations = message.content[0].type === 'text' 
-  ? message.content[0].text
-  : '';
+    const rawRecommendations = completion.choices[0]?.message?.content || '';
+    
+    
+    console.log('Raw AI response:', rawRecommendations.substring(0, 200) + '...');
+    
+    
+    const recommendations = filterThinkTags(rawRecommendations);
+    
+    
+    console.log('Filtered response:', recommendations.substring(0, 200) + '...');
 
     return NextResponse.json({ recommendations });
   } catch (error) {
     console.error('Error generating recommendations:', error);
+    
+    
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        return NextResponse.json(
+          { error: 'Invalid or missing Groq API key' },
+          { status: 401 }
+        );
+      }
+      if (error.message.includes('rate limit')) {
+        return NextResponse.json(
+          { error: 'Rate limit exceeded. Please try again later.' },
+          { status: 429 }
+        );
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Error generating recommendations' },
+      { error: 'Error generating recommendations. Please try again.' },
       { status: 500 }
     );
   }

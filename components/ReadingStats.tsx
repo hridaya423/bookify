@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+
 'use client';
+
+
 
 import { useState, useEffect } from 'react';
 import { useSupabase } from '@/providers/supabase-provider';
@@ -12,11 +15,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { BookOpen, Trophy, Calendar, TrendingUp, Target, Library, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const fadeIn = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
-};
 
 interface DailyProgress {
   pages_read: number;
@@ -74,10 +72,6 @@ interface UserSettings {
   favorite_genres: string[];
 }
 
-interface UserProfile {
-  id: string;
-  full_name?: string;
-}
 
 const calculateStreak = (dailyProgress: DailyProgress[]): number => {
   if (!dailyProgress?.length) return 0;
