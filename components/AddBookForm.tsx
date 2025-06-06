@@ -78,6 +78,7 @@ export function AddBookForm({ onComplete, prefilledData }: AddBookFormProps) {
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [fetchingPageCount, setFetchingPageCount] = useState(false);
   const [title, setTitle] = useState(prefilledData?.title || '');
   const [author, setAuthor] = useState(prefilledData?.author || '');
   const [status, setStatus] = useState<BookData['status']>('planned');
@@ -173,10 +174,9 @@ export function AddBookForm({ onComplete, prefilledData }: AddBookFormProps) {
     
     setSearchLoading(true);
     setError(null);
-    
-    try {
+      try {
       const response = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&projection=lite`
+        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&fields=items(id,volumeInfo(title,authors,publishedDate,pageCount,imageLinks,description,categories))`
       );
       const data: GoogleBooksResponse = await response.json();
       
@@ -267,12 +267,29 @@ export function AddBookForm({ onComplete, prefilledData }: AddBookFormProps) {
     if (hasSelectedBook && value !== title) {
       setHasSelectedBook(false);
     }
-  };
-
+  };  
   const selectBook = async (book: BookSuggestion) => {
     setTitle(book.title);
     setAuthor(book.authors[0] || '');
-    setTotalPages(book.pageCount || null);
+    
+    if (book.pageCount && book.pageCount > 0) {
+      setTotalPages(book.pageCount);
+    } else {
+      setFetchingPageCount(true);
+      try {
+        const detailResponse = await fetch(
+          `https://www.googleapis.com/books/v1/volumes/${book.id}?fields=volumeInfo(pageCount)`
+        );
+        const detailData = await detailResponse.json();
+        if (detailData.volumeInfo?.pageCount) {
+          setTotalPages(detailData.volumeInfo.pageCount);
+        }
+      } catch (error) {
+        console.log('Could not fetch detailed page count:', error);
+      } finally {
+        setFetchingPageCount(false);
+      }
+    }
     
     const imageUrl = book.imageLinks?.thumbnail || book.imageLinks?.smallThumbnail;
     if (imageUrl) {
@@ -509,12 +526,14 @@ export function AddBookForm({ onComplete, prefilledData }: AddBookFormProps) {
                           )}
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-gray-900 truncate">{book.title}</h4>
-                            <p className="text-sm text-gray-600 truncate">by {book.authors.join(', ')}</p>
-                            {book.publishedDate && (
+                            <p className="text-sm text-gray-600 truncate">by {book.authors.join(', ')}</p>                            {book.publishedDate && (
                               <p className="text-xs text-gray-500">{book.publishedDate}</p>
                             )}
                             {book.pageCount && (
                               <p className="text-xs text-red-600 font-medium">{book.pageCount} pages</p>
+                            )}
+                            {!book.pageCount && (
+                              <p className="text-xs text-gray-400">Pages: Not available</p>
                             )}
                           </div>
                         </div>
@@ -576,21 +595,26 @@ export function AddBookForm({ onComplete, prefilledData }: AddBookFormProps) {
                 placeholder="Author name"
               />
             </div>
-
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6">              
               <div className="space-y-2">
                 <Label htmlFor="totalPages" className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <HashIcon className="w-4 h-4 text-red-400" />
                   Total Pages
+                  {fetchingPageCount && (
+                    <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                  )}
                 </Label>
-                <Input
-                  id="totalPages"
-                  type="number"
-                  value={totalPages || ''}
-                  onChange={(e) => setTotalPages(parseInt(e.target.value) || null)}
-                  className="w-full transition-all duration-200 border-gray-200 focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                  placeholder="Number of pages"
-                />
+                <div className="relative">
+                  <Input
+                    id="totalPages"
+                    type="number"
+                    value={totalPages || ''}
+                    onChange={(e) => setTotalPages(parseInt(e.target.value) || null)}
+                    className="w-full transition-all duration-200 border-gray-200 focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    placeholder={fetchingPageCount ? "Fetching page count..." : "Number of pages"}
+                    disabled={fetchingPageCount}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
