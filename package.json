@@ -26,7 +26,7 @@
     "@supabase/supabase-js": "^2.87.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.23.25",
+    "framer-motion": "^12.23.26",
     "groq-sdk": "^0.37.0",
     "lucide-react": "^0.556.0",
     "next": "16.0.10",
