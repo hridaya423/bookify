@@ -46,6 +46,6 @@
     "postcss": "^8",
     "supabase": "^2.84.4",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5"
+    "typescript": "^6"
   }
 }
