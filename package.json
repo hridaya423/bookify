@@ -44,7 +44,7 @@
     "eslint": "^10",
     "eslint-config-next": "16.2.1",
     "postcss": "^8",
-    "supabase": "^2.84.4",
+    "supabase": "^2.84.10",
     "tailwindcss": "^4.2.2",
     "typescript": "^6"
   }
